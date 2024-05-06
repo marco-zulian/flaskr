@@ -8,6 +8,13 @@ from models import setup_db, Question, Category
 
 QUESTIONS_PER_PAGE = 10
 
+def paginate_questions(request, selection):
+    page = request.args.get("page", 1, type=int)
+    start_index = QUESTIONS_PER_PAGE * (page - 1)
+    end_index = start_index + QUESTIONS_PER_PAGE
+
+    return [question.format() for question in selection[start_index:end_index]]
+
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__)
@@ -18,38 +25,43 @@ def create_app(test_config=None):
         database_path = test_config.get('SQLALCHEMY_DATABASE_URI')
         setup_db(app, database_path=database_path)
 
-    CORS(app, origins='*')
+    CORS(app)
 
+    # CORS Headers
     @app.after_request
     def after_request(response):
         response.headers.add(
             "Access-Control-Allow-Headers", "Content-Type,Authorization,true"
         )
         response.headers.add(
-            "Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+            "Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS"
         )
-
         return response
 
-    """
-    @TODO:
-    Create an endpoint to handle GET requests
-    for all available categories.
-    """
+    @app.route("/categories")
+    def categories():
+        categories = Category.query.order_by(Category.id).all()
 
+        return jsonify({
+            'success': True, 
+            'categories': [category.format() for category in categories]
+        })
 
-    """
-    @TODO:
-    Create an endpoint to handle GET requests for questions,
-    including pagination (every 10 questions).
-    This endpoint should return a list of questions,
-    number of total questions, current category, categories.
+    @app.route("/questions")
+    def questions():
+        questions = Question.query.order_by(Question.id).all()
+        paginated_questions = paginate_questions(request, questions)
 
-    TEST: At this point, when you start the application
-    you should see questions and categories generated,
-    ten questions per page and pagination at the bottom of the screen for three pages.
-    Clicking on the page numbers should update the questions.
-    """
+        if not paginated_questions:
+            abort(404)
+        
+        return jsonify({
+            'success': True,
+            'questions': paginated_questions,
+            'total_questions': len(questions),
+            'categories': { category.id: category.type for category in Category.query.order_by(Category.id).all() },
+            'current_category': 'oi', 
+        })
 
     """
     @TODO:
@@ -107,6 +119,13 @@ def create_app(test_config=None):
     Create error handlers for all expected errors
     including 404 and 422.
     """
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({
+            'success': False,
+            'error': 404,
+            'message': 'No resources found',
+        }), 404
 
     return app
 
