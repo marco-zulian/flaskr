@@ -18,9 +18,7 @@ def create_app(test_config=None):
         database_path = test_config.get('SQLALCHEMY_DATABASE_URI')
         setup_db(app, database_path=database_path)
 
-    """
-    @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
-    """
+    CORS(app, origins='*')
 
     """
     @TODO: Use the after_request decorator to set Access-Control-Allow
